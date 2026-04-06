@@ -2774,13 +2774,16 @@
     const DPI = 2;
     const COLS = 2;
     const CANVAS_W = 1200 * DPI;
-    const PAD = 40 * DPI;
-    const COL_W = (CANVAS_W - PAD * 3) / COLS;
-    const PHOTO_SIZE = 220 * DPI; // also bumped from 180 -> 220
-    const CELL_H = 280 * DPI;
-    const HEADER_H = 120 * DPI;
+    const PAD_OUTER = 36 * DPI;       // outer canvas padding
+    const GUTTER = 32 * DPI;          // space between columns
+    const COL_W = (CANVAS_W - PAD_OUTER * 2 - GUTTER) / COLS;
+    const PHOTO_SIZE = 260 * DPI;     // bumped 220 → 260 (more recognizable)
+    const GAP = 22 * DPI;              // space between photo and text
+    const ROW_PAD = 22 * DPI;         // vertical padding inside cell
+    const CELL_H = PHOTO_SIZE + ROW_PAD * 2;
+    const HEADER_H = 140 * DPI;
     const ROWS = Math.ceil(TOTAL / COLS);
-    const CANVAS_H = HEADER_H + ROWS * CELL_H + PAD;
+    const CANVAS_H = HEADER_H + ROWS * CELL_H + PAD_OUTER;
 
     const canvas = document.createElement('canvas');
     canvas.width = CANVAS_W;
@@ -2795,22 +2798,22 @@
 
     // Header
     ctx.fillStyle = '#1A1A1A';
-    ctx.font = '700 ' + (42 * DPI) + 'px Georgia, serif';
+    ctx.font = '700 ' + (52 * DPI) + 'px Georgia, serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Staff Directory', CANVAS_W / 2, 70 * DPI);
+    ctx.fillText('Staff Directory', CANVAS_W / 2, 78 * DPI);
 
     // Subtitle line
     ctx.fillStyle = '#999';
-    ctx.font = '400 ' + (16 * DPI) + 'px sans-serif';
+    ctx.font = '400 ' + (18 * DPI) + 'px sans-serif';
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    ctx.fillText(date, CANVAS_W / 2, 98 * DPI);
+    ctx.fillText(date, CANVAS_W / 2, 108 * DPI);
 
     // Header divider
     ctx.strokeStyle = '#DDD';
     ctx.lineWidth = 1 * DPI;
     ctx.beginPath();
-    ctx.moveTo(PAD, HEADER_H - 5 * DPI);
-    ctx.lineTo(CANVAS_W - PAD, HEADER_H - 5 * DPI);
+    ctx.moveTo(PAD_OUTER, HEADER_H - 6 * DPI);
+    ctx.lineTo(CANVAS_W - PAD_OUTER, HEADER_H - 6 * DPI);
     ctx.stroke();
 
     ctx.textAlign = 'left';
@@ -2819,8 +2822,8 @@
     for (let i = 0; i < TOTAL; i++) {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
-      const x = PAD + col * (COL_W + PAD);
-      const y = HEADER_H + row * CELL_H + 20 * DPI;
+      const x = PAD_OUTER + col * (COL_W + GUTTER);
+      const y = HEADER_H + row * CELL_H + ROW_PAD;
 
       // Get the image element from DOM
       const imgEl = document.querySelector('#card-' + i + ' img');
@@ -2829,7 +2832,7 @@
       ctx.save();
       const photoX = x;
       const photoY = y;
-      const r = 12 * DPI;
+      const r = 14 * DPI;
       ctx.beginPath();
       ctx.moveTo(photoX + r, photoY);
       ctx.lineTo(photoX + PHOTO_SIZE - r, photoY);
@@ -2851,38 +2854,91 @@
       }
       ctx.restore();
 
+      // Subtle border around photo for crispness on print
+      ctx.strokeStyle = '#E8E4DC';
+      ctx.lineWidth = 1 * DPI;
+      ctx.beginPath();
+      ctx.roundRect
+        ? ctx.roundRect(photoX, photoY, PHOTO_SIZE, PHOTO_SIZE, r)
+        : ctx.rect(photoX, photoY, PHOTO_SIZE, PHOTO_SIZE);
+      ctx.stroke();
+
       // Text area to the right of the photo
-      const textX = x + PHOTO_SIZE + 24 * DPI;
-      const textMaxW = COL_W - PHOTO_SIZE - 24 * DPI;
+      const textX = x + PHOTO_SIZE + GAP;
+      const textMaxW = COL_W - PHOTO_SIZE - GAP;
       const displayNum = String(i + 1).padStart(2, '0');
 
-      // Card number
-      ctx.fillStyle = '#AAA';
-      ctx.font = '500 ' + (14 * DPI) + 'px sans-serif';
-      ctx.fillText('#' + displayNum, textX, y + 22 * DPI);
+      // Larger fonts for legibility
+      let nameSize = 36 * DPI;
+      let nameLH = 44 * DPI;
+      let posSize = 23 * DPI;
+      let posLH = 29 * DPI;
+      const NUM_SIZE = 15 * DPI;
 
-      // Name
+      // Auto-shrink name if it would wrap to 3+ lines
+      ctx.font = '700 ' + nameSize + 'px sans-serif';
       const name = (saved[i] && saved[i].name && saved[i].name.trim()) || '(not filled)';
-      ctx.fillStyle = '#1A1A1A';
-      ctx.font = '700 ' + (26 * DPI) + 'px sans-serif';
-      wrapText(ctx, name, textX, y + 58 * DPI, textMaxW, 32 * DPI);
+      let nameLinesArr = computeWrappedLines(ctx, name, textMaxW);
+      if (nameLinesArr.length >= 3) {
+        nameSize = 30 * DPI;
+        nameLH = 36 * DPI;
+        ctx.font = '700 ' + nameSize + 'px sans-serif';
+        nameLinesArr = computeWrappedLines(ctx, name, textMaxW);
+      }
 
-      // Position
+      // Auto-shrink position if it would wrap to 3+ lines
+      ctx.font = '400 ' + posSize + 'px sans-serif';
       const pos = (saved[i] && saved[i].position && saved[i].position.trim()) || '(not filled)';
-      // Calculate where name ended to position title below
-      const nameLines = getWrappedLines(ctx, name, textMaxW);
-      const nameEndY = y + 58 * DPI + (nameLines - 1) * 32 * DPI;
-      ctx.fillStyle = '#666';
-      ctx.font = '400 ' + (18 * DPI) + 'px sans-serif';
-      wrapText(ctx, pos, textX, nameEndY + 34 * DPI, textMaxW, 24 * DPI);
+      let posLinesArr = computeWrappedLines(ctx, pos, textMaxW);
+      if (posLinesArr.length >= 3) {
+        posSize = 19 * DPI;
+        posLH = 24 * DPI;
+        ctx.font = '400 ' + posSize + 'px sans-serif';
+        posLinesArr = computeWrappedLines(ctx, pos, textMaxW);
+      }
 
-      // Row divider (except last row)
-      if (col === COLS - 1 || i === TOTAL - 1) {
+      const numBlockH = NUM_SIZE + 10 * DPI;
+      const nameBlockH = nameLinesArr.length * nameLH;
+      const posBlockH = posLinesArr.length * posLH;
+      const gapBetween = 10 * DPI;
+      const totalH = numBlockH + nameBlockH + gapBetween + posBlockH;
+
+      // Vertically center the text block against the photo
+      let textY = y + (PHOTO_SIZE - totalH) / 2;
+      if (textY < y + 4 * DPI) textY = y + 4 * DPI; // never overflow top
+
+      // Safety clip region so nothing can visually overflow the text column
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(textX, y, textMaxW, PHOTO_SIZE);
+      ctx.clip();
+
+      // Card number (small muted label)
+      ctx.fillStyle = '#B0B0B0';
+      ctx.font = '600 ' + NUM_SIZE + 'px sans-serif';
+      ctx.fillText('#' + displayNum, textX, textY + NUM_SIZE);
+      textY += numBlockH;
+
+      // Name (big, bold, dark) — draw pre-computed lines
+      ctx.fillStyle = '#111';
+      ctx.font = '700 ' + nameSize + 'px sans-serif';
+      drawLines(ctx, nameLinesArr, textX, textY + nameSize * 0.85, nameLH);
+      textY += nameBlockH + gapBetween;
+
+      // Position (medium, regular, secondary color)
+      ctx.fillStyle = '#555';
+      ctx.font = '400 ' + posSize + 'px sans-serif';
+      drawLines(ctx, posLinesArr, textX, textY + posSize * 0.85, posLH);
+
+      ctx.restore();
+
+      // Full-row divider after the right column
+      if (col === COLS - 1 && i < TOTAL - 1) {
         ctx.strokeStyle = '#EEE';
         ctx.lineWidth = 1 * DPI;
         ctx.beginPath();
-        ctx.moveTo(PAD, y + CELL_H - 18 * DPI);
-        ctx.lineTo(CANVAS_W - PAD, y + CELL_H - 18 * DPI);
+        ctx.moveTo(PAD_OUTER, y + PHOTO_SIZE + ROW_PAD);
+        ctx.lineTo(CANVAS_W - PAD_OUTER, y + PHOTO_SIZE + ROW_PAD);
         ctx.stroke();
       }
     }
@@ -2894,39 +2950,92 @@
     document.getElementById('photobook-overlay').classList.add('open');
   };
 
-  // Text wrapping helper
-  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  // Split a string into atoms that can start a new line.
+  // Breaks on spaces AND after hyphens (keeps the hyphen attached to the previous atom).
+  function splitForWrap(text) {
+    // First split by spaces
     const words = text.split(' ');
-    let line = '';
-    let lineY = y;
-    for (let w = 0; w < words.length; w++) {
-      const testLine = line + (line ? ' ' : '') + words[w];
-      if (ctx.measureText(testLine).width > maxWidth && line) {
-        ctx.fillText(line, x, lineY);
-        line = words[w];
-        lineY += lineHeight;
+    const atoms = [];
+    for (const word of words) {
+      // Then split each word on hyphens, keeping the hyphen at the end
+      if (word.includes('-')) {
+        const parts = word.split('-');
+        for (let i = 0; i < parts.length; i++) {
+          const isLast = i === parts.length - 1;
+          if (parts[i] !== '') atoms.push(parts[i] + (isLast ? '' : '-'));
+        }
       } else {
-        line = testLine;
+        atoms.push(word);
       }
     }
-    ctx.fillText(line, x, lineY);
+    return atoms;
   }
 
-  // Count wrapped lines helper
-  function getWrappedLines(ctx, text, maxWidth) {
-    const words = text.split(' ');
+  // Build the wrapped lines (array of strings) without drawing.
+  // Handles space-split, hyphen-split, and character-level fallback for
+  // atoms that are individually wider than maxWidth.
+  function computeWrappedLines(ctx, text, maxWidth) {
+    const atoms = splitForWrap(text);
+    const lines = [];
     let line = '';
-    let lines = 1;
-    for (let w = 0; w < words.length; w++) {
-      const testLine = line + (line ? ' ' : '') + words[w];
+
+    const push = () => {
+      if (line) lines.push(line);
+      line = '';
+    };
+
+    const charFallback = (atom) => {
+      // Break an overlong atom character by character
+      let current = '';
+      for (const ch of atom) {
+        const test = current + ch;
+        if (ctx.measureText(test).width > maxWidth && current) {
+          lines.push(current);
+          current = ch;
+        } else {
+          current = test;
+        }
+      }
+      if (current) line = current;
+    };
+
+    for (const atom of atoms) {
+      // If the atom itself is wider than maxWidth, flush current line and char-break it
+      if (ctx.measureText(atom).width > maxWidth) {
+        push();
+        charFallback(atom);
+        continue;
+      }
+      // Normal word-fit check. Only add a space if the current line doesn't
+      // already end in a hyphen (hyphens glue to the previous atom).
+      const sep = line && !line.endsWith('-') ? ' ' : '';
+      const testLine = line + sep + atom;
       if (ctx.measureText(testLine).width > maxWidth && line) {
-        line = words[w];
-        lines++;
+        push();
+        line = atom;
       } else {
         line = testLine;
       }
     }
+    push();
     return lines;
+  }
+
+  // Draw pre-computed lines at the given baseline
+  function drawLines(ctx, lines, x, y, lineHeight) {
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x, y + i * lineHeight);
+    }
+  }
+
+  // Backwards-compatible wrappers (previously used signatures)
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const lines = computeWrappedLines(ctx, text, maxWidth);
+    drawLines(ctx, lines, x, y, lineHeight);
+  }
+
+  function getWrappedLines(ctx, text, maxWidth) {
+    return computeWrappedLines(ctx, text, maxWidth).length;
   }
 
   // ── Download + close ──
