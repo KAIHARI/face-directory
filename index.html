@@ -522,7 +522,8 @@
     opacity: 0;
     transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     pointer-events: none;
-    white-space: nowrap;
+    max-width: 90vw;
+    text-align: center;
   }
 
   .toast.show {
@@ -927,10 +928,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       Copy Results
     </button>
-    <a class="btn btn-primary" id="email-btn" href="#">
+    <button class="btn btn-primary" id="email-btn" onclick="emailResults()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
       Email Results
-    </a>
+    </button>
   </div>
 </div>
 
@@ -2029,11 +2030,31 @@
   };
 
   // ── Email results ──
-  function updateEmailHref() {
-    const body = encodeURIComponent(buildResults());
+  window.emailResults = function() {
+    const text = buildResults();
     const subject = encodeURIComponent('Face Directory - Completed Labels');
-    document.getElementById('email-btn').href = 'mailto:' + EMAIL + '?subject=' + subject + '&body=' + body;
-  }
+    const body = encodeURIComponent(text);
+    const mailtoUrl = 'mailto:' + EMAIL + '?subject=' + subject + '&body=' + body;
+
+    // Copy to clipboard first as a reliable fallback
+    navigator.clipboard.writeText(text).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    });
+
+    // Try opening mailto — if no mail client, it silently fails
+    const w = window.open(mailtoUrl, '_self');
+
+    // Show helpful toast with the email address
+    showToast('Results copied! Email to: ' + EMAIL);
+  };
+
+  // Keep for backwards compat with updateState calls
+  function updateEmailHref() {}
 
   // ── Toast notification ──
   function showToast(msg) {
