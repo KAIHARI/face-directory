@@ -1343,6 +1343,7 @@ TEMPLATE_BOTTOM = r'''</div>
         '<div class="ac-item" data-i="' + i + '">' + item + '</div>'
       ).join('');
       dropdown.classList.add('open');
+      input.closest('.card').style.zIndex = '10';
     }
 
     function hide() {
@@ -1350,6 +1351,7 @@ TEMPLATE_BOTTOM = r'''</div>
       dropdown.innerHTML = '';
       items = [];
       activeIdx = -1;
+      input.closest('.card').style.zIndex = '';
     }
 
     function selectItem(idx) {

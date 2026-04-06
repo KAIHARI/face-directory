@@ -1638,6 +1638,7 @@
         '<div class="ac-item" data-i="' + i + '">' + item + '</div>'
       ).join('');
       dropdown.classList.add('open');
+      input.closest('.card').style.zIndex = '10';
     }
 
     function hide() {
@@ -1645,6 +1646,7 @@
       dropdown.innerHTML = '';
       items = [];
       activeIdx = -1;
+      input.closest('.card').style.zIndex = '';
     }
 
     function selectItem(idx) {
