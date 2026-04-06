@@ -189,14 +189,20 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
   }
 
   .banner-inner {
-    background: var(--accent-light);
-    border: 1px solid var(--border-banner);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 14px 20px;
-    font-size: 0.9rem;
-    color: var(--banner-text);
-    line-height: 1.5;
-    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+    padding: 16px 22px;
+    font-size: 0.95rem;
+    color: var(--text);
+    line-height: 1.55;
+    box-shadow: var(--shadow);
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s, box-shadow 0.3s;
+  }
+
+  .banner-inner strong {
+    color: var(--accent);
+    font-weight: 600;
   }
 
   /* ── Grid ── */
@@ -792,6 +798,53 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
     animation: shake 0.4s ease;
   }
 
+  /* ── Admin Panel & Paste Modal ── */
+  .admin-card {
+    max-width: 380px;
+    position: relative;
+  }
+
+  .admin-action {
+    width: 100%;
+    margin-top: 10px;
+    justify-content: flex-start;
+    padding: 14px 18px;
+    text-align: left;
+  }
+
+  .paste-card {
+    max-width: 560px;
+    width: 100%;
+    position: relative;
+  }
+
+  .paste-card textarea {
+    width: 100%;
+    min-height: 220px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--input-bg);
+    resize: vertical;
+    outline: none;
+    margin-bottom: 8px;
+  }
+
+  .paste-card textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .paste-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 14px;
+  }
+
   /* ── Photobook Preview ── */
   .photobook-overlay {
     position: fixed;
@@ -992,6 +1045,38 @@ TEMPLATE_BOTTOM = r'''</div>
       <button onclick="submitPassword()">Go</button>
     </div>
     <div class="pw-error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- Admin Panel -->
+<div class="pw-modal" id="admin-panel">
+  <div class="pw-card admin-card">
+    <button class="fallback-close" onclick="closeAdminPanel()">&times;</button>
+    <h3>Admin Tools</h3>
+    <p>What would you like to do?</p>
+    <button class="btn btn-primary admin-action" onclick="closeAdminPanel(); generatePhotobook();">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Generate Photobook
+    </button>
+    <button class="btn btn-secondary admin-action" onclick="showPasteLoad();">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+      Paste &amp; Load Data
+    </button>
+  </div>
+</div>
+
+<!-- Paste Load Modal -->
+<div class="pw-modal" id="paste-modal">
+  <div class="pw-card paste-card">
+    <button class="fallback-close" onclick="closePasteModal()">&times;</button>
+    <h3>Paste Results</h3>
+    <p>Paste a previous Face Directory export below</p>
+    <textarea id="paste-textarea" placeholder="#01  Name: ...  |  Position: ...&#10;#02  Name: ...  |  Position: ...&#10;..."></textarea>
+    <div class="pw-error" id="paste-error"></div>
+    <div class="paste-actions">
+      <button class="btn btn-secondary" onclick="closePasteModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="loadPastedData()">Load Data</button>
+    </div>
   </div>
 </div>
 
@@ -2209,13 +2294,89 @@ TEMPLATE_BOTTOM = r'''</div>
 
     if (input.value === 'ahmchealth') {
       document.getElementById('pw-modal').classList.remove('open');
-      generatePhotobook();
+      document.getElementById('admin-panel').classList.add('open');
     } else {
       error.textContent = 'Incorrect password';
       card.classList.remove('shake');
       void card.offsetWidth; // force reflow
       card.classList.add('shake');
     }
+  };
+
+  window.closeAdminPanel = function() {
+    document.getElementById('admin-panel').classList.remove('open');
+  };
+
+  window.showPasteLoad = function() {
+    closeAdminPanel();
+    const modal = document.getElementById('paste-modal');
+    document.getElementById('paste-error').textContent = '';
+    document.getElementById('paste-textarea').value = '';
+    modal.classList.add('open');
+    setTimeout(() => document.getElementById('paste-textarea').focus(), 100);
+  };
+
+  window.closePasteModal = function() {
+    document.getElementById('paste-modal').classList.remove('open');
+  };
+
+  window.loadPastedData = function() {
+    const text = document.getElementById('paste-textarea').value;
+    const errorEl = document.getElementById('paste-error');
+
+    if (!text.trim()) {
+      errorEl.textContent = 'Please paste some data first';
+      return;
+    }
+
+    // Parse format: "#01  Name: Foo Bar  |  Position: Title"
+    const lineRe = /^#(\d{1,3})\s+Name:\s*(.*?)\s*\|\s*Position:\s*(.*?)$/;
+    const lines = text.split(/\r?\n/);
+    let parsed = 0;
+    const newData = {};
+
+    for (const line of lines) {
+      const m = line.match(lineRe);
+      if (m) {
+        const num = parseInt(m[1], 10);
+        const idx = num - 1; // #01 -> idx 0
+        if (idx >= 0 && idx < TOTAL) {
+          const name = m[2].trim();
+          const pos = m[3].trim();
+          newData[idx] = {
+            name: name === '(not filled)' ? '' : name,
+            position: pos === '(not filled)' ? '' : pos
+          };
+          parsed++;
+        }
+      }
+    }
+
+    if (parsed === 0) {
+      errorEl.textContent = 'Could not parse any entries. Check the format.';
+      return;
+    }
+
+    // Merge into saved and persist
+    Object.assign(saved, newData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+
+    // Update DOM inputs
+    document.querySelectorAll('.card-fields input').forEach(input => {
+      const idx = input.dataset.idx;
+      const field = input.dataset.field;
+      if (saved[idx] && saved[idx][field] !== undefined) {
+        input.value = saved[idx][field];
+      }
+    });
+
+    // Reset milestone tracking so we don't re-fire celebrations
+    shownMilestones.clear();
+    confettiFired = true; // suppress confetti on bulk load
+
+    updateState();
+    closePasteModal();
+    showToast('Loaded ' + parsed + ' entries');
   };
 
   // Enter key in password field
