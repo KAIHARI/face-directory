@@ -17,6 +17,7 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
   :root {
+    color-scheme: light;
     --bg: #F4F1EB;
     --card: #FFFFFF;
     --accent: #B85636;
@@ -44,6 +45,7 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
   }
 
   [data-theme="dark"] {
+    color-scheme: dark;
     --bg: #1A1918;
     --card: #2A2826;
     --accent: #D4774F;
@@ -337,6 +339,8 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
     font-size: 0.95rem;
     color: var(--text);
     background: var(--input-bg);
+    caret-color: var(--accent);
+    cursor: text;
     transition: border-color 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s;
     outline: none;
   }
