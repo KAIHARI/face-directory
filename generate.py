@@ -297,6 +297,9 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
     object-fit: cover;
     display: block;
     transition: transform 0.3s ease;
+    /* Technique 2: CSS sharpening — perceptual contrast boost */
+    filter: contrast(1.08) saturate(1.05);
+    image-rendering: -webkit-optimize-contrast;
   }
 
   .card-img-wrap:hover img {
@@ -415,6 +418,8 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
     box-shadow: 0 16px 64px rgba(0,0,0,0.5);
     transform: scale(0.9);
     transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    /* Technique 2: CSS sharpening filter (slightly stronger for upscale) */
+    filter: contrast(1.1) saturate(1.08);
   }
 
   .lightbox.open img {
@@ -2126,12 +2131,84 @@ TEMPLATE_BOTTOM = r'''</div>
   const lightboxImg = document.getElementById('lightbox-img');
   const lightboxLabel = document.getElementById('lightbox-label');
 
+  // ── Technique 3: Bicubic upscale + unsharp mask ──
+  // Cache processed images so re-opening is instant
+  const enhancedCache = {};
+
+  function enhanceImage(srcImg, idx) {
+    if (enhancedCache[idx]) return enhancedCache[idx];
+
+    const targetW = srcImg.naturalWidth * 2;
+    const targetH = srcImg.naturalHeight * 2;
+
+    // First pass: upscale 2x with high-quality interpolation
+    const c1 = document.createElement('canvas');
+    c1.width = targetW;
+    c1.height = targetH;
+    const ctx1 = c1.getContext('2d');
+    ctx1.imageSmoothingEnabled = true;
+    ctx1.imageSmoothingQuality = 'high';
+    ctx1.drawImage(srcImg, 0, 0, targetW, targetH);
+
+    // Second pass: apply unsharp mask via 3x3 sharpen kernel
+    try {
+      const imgData = ctx1.getImageData(0, 0, targetW, targetH);
+      const sharpened = applySharpen(imgData, 0.4);
+      ctx1.putImageData(sharpened, 0, 0);
+    } catch (e) {
+      // CORS or other issue — just use the upscaled version
+      console.log('Sharpen failed:', e);
+    }
+
+    const dataUrl = c1.toDataURL('image/jpeg', 0.92);
+    enhancedCache[idx] = dataUrl;
+    return dataUrl;
+  }
+
+  // 3x3 sharpen kernel: subtle sharpen with strength control
+  function applySharpen(imageData, strength) {
+    const w = imageData.width;
+    const h = imageData.height;
+    const src = imageData.data;
+    const out = new Uint8ClampedArray(src);
+
+    // Kernel: identity + (sharpen - identity) * strength
+    // Sharpen: [0,-1,0; -1,5,-1; 0,-1,0]
+    // Blended: center = 1 + 4*strength, neighbors = -strength
+    const c = 1 + 4 * strength;
+    const n = -strength;
+
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = (y * w + x) * 4;
+        for (let ch = 0; ch < 3; ch++) { // R,G,B only, skip alpha
+          const v =
+            src[i + ch] * c +
+            src[i - 4 + ch] * n +
+            src[i + 4 + ch] * n +
+            src[i - w * 4 + ch] * n +
+            src[i + w * 4 + ch] * n;
+          out[i + ch] = v < 0 ? 0 : v > 255 ? 255 : v;
+        }
+      }
+    }
+
+    return new ImageData(out, w, h);
+  }
+
   document.querySelectorAll('.card-img-wrap').forEach(wrap => {
     wrap.addEventListener('click', function() {
       const img = this.querySelector('img');
       const idx = this.dataset.imgIdx;
       const displayNum = parseInt(idx) + 1;
-      lightboxImg.src = img.src;
+
+      // Use enhanced version if image is loaded, fallback to original
+      if (img.complete && img.naturalWidth > 0) {
+        lightboxImg.src = enhanceImage(img, idx);
+      } else {
+        lightboxImg.src = img.src;
+      }
+
       const name = (saved[idx] && saved[idx].name && saved[idx].name.trim()) || '';
       lightboxLabel.textContent = name ? '#' + String(displayNum).padStart(2,'0') + ' \u2014 ' + name : '#' + String(displayNum).padStart(2,'0');
       lightbox.classList.add('open');
@@ -2394,13 +2471,15 @@ TEMPLATE_BOTTOM = r'''</div>
   let photobookDataUrl = null;
 
   window.generatePhotobook = function() {
+    // ── Technique 1: 2x DPI for retina/print quality ──
+    const DPI = 2;
     const COLS = 2;
-    const CANVAS_W = 1200;
-    const PAD = 40;
+    const CANVAS_W = 1200 * DPI;
+    const PAD = 40 * DPI;
     const COL_W = (CANVAS_W - PAD * 3) / COLS;
-    const PHOTO_SIZE = 180;
-    const CELL_H = 240;
-    const HEADER_H = 120;
+    const PHOTO_SIZE = 220 * DPI; // also bumped from 180 -> 220
+    const CELL_H = 280 * DPI;
+    const HEADER_H = 120 * DPI;
     const ROWS = Math.ceil(TOTAL / COLS);
     const CANVAS_H = HEADER_H + ROWS * CELL_H + PAD;
 
@@ -2408,6 +2487,8 @@ TEMPLATE_BOTTOM = r'''</div>
     canvas.width = CANVAS_W;
     canvas.height = CANVAS_H;
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // White background
     ctx.fillStyle = '#FFFFFF';
@@ -2415,22 +2496,22 @@ TEMPLATE_BOTTOM = r'''</div>
 
     // Header
     ctx.fillStyle = '#1A1A1A';
-    ctx.font = '700 42px Georgia, serif';
+    ctx.font = '700 ' + (42 * DPI) + 'px Georgia, serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Staff Directory', CANVAS_W / 2, 70);
+    ctx.fillText('Staff Directory', CANVAS_W / 2, 70 * DPI);
 
     // Subtitle line
     ctx.fillStyle = '#999';
-    ctx.font = '400 16px sans-serif';
+    ctx.font = '400 ' + (16 * DPI) + 'px sans-serif';
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    ctx.fillText(date, CANVAS_W / 2, 98);
+    ctx.fillText(date, CANVAS_W / 2, 98 * DPI);
 
     // Header divider
     ctx.strokeStyle = '#DDD';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1 * DPI;
     ctx.beginPath();
-    ctx.moveTo(PAD, HEADER_H - 5);
-    ctx.lineTo(CANVAS_W - PAD, HEADER_H - 5);
+    ctx.moveTo(PAD, HEADER_H - 5 * DPI);
+    ctx.lineTo(CANVAS_W - PAD, HEADER_H - 5 * DPI);
     ctx.stroke();
 
     ctx.textAlign = 'left';
@@ -2440,7 +2521,7 @@ TEMPLATE_BOTTOM = r'''</div>
       const col = i % COLS;
       const row = Math.floor(i / COLS);
       const x = PAD + col * (COL_W + PAD);
-      const y = HEADER_H + row * CELL_H + 20;
+      const y = HEADER_H + row * CELL_H + 20 * DPI;
 
       // Get the image element from DOM
       const imgEl = document.querySelector('#card-' + i + ' img');
@@ -2449,7 +2530,7 @@ TEMPLATE_BOTTOM = r'''</div>
       ctx.save();
       const photoX = x;
       const photoY = y;
-      const r = 12;
+      const r = 12 * DPI;
       ctx.beginPath();
       ctx.moveTo(photoX + r, photoY);
       ctx.lineTo(photoX + PHOTO_SIZE - r, photoY);
@@ -2472,39 +2553,37 @@ TEMPLATE_BOTTOM = r'''</div>
       ctx.restore();
 
       // Text area to the right of the photo
-      const textX = x + PHOTO_SIZE + 20;
-      const textMaxW = COL_W - PHOTO_SIZE - 20;
+      const textX = x + PHOTO_SIZE + 24 * DPI;
+      const textMaxW = COL_W - PHOTO_SIZE - 24 * DPI;
       const displayNum = String(i + 1).padStart(2, '0');
 
       // Card number
       ctx.fillStyle = '#AAA';
-      ctx.font = '500 13px sans-serif';
-      ctx.fillText('#' + displayNum, textX, y + 18);
+      ctx.font = '500 ' + (14 * DPI) + 'px sans-serif';
+      ctx.fillText('#' + displayNum, textX, y + 22 * DPI);
 
       // Name
       const name = (saved[i] && saved[i].name && saved[i].name.trim()) || '(not filled)';
       ctx.fillStyle = '#1A1A1A';
-      ctx.font = '700 22px sans-serif';
-      wrapText(ctx, name, textX, y + 50, textMaxW, 28);
+      ctx.font = '700 ' + (26 * DPI) + 'px sans-serif';
+      wrapText(ctx, name, textX, y + 58 * DPI, textMaxW, 32 * DPI);
 
       // Position
       const pos = (saved[i] && saved[i].position && saved[i].position.trim()) || '(not filled)';
-      ctx.fillStyle = '#666';
-      ctx.font = '400 16px sans-serif';
       // Calculate where name ended to position title below
       const nameLines = getWrappedLines(ctx, name, textMaxW);
-      ctx.font = '700 22px sans-serif'; // measure with name font
-      const nameEndY = y + 50 + (nameLines - 1) * 28;
-      ctx.font = '400 16px sans-serif';
-      wrapText(ctx, pos, textX, nameEndY + 28, textMaxW, 22);
+      const nameEndY = y + 58 * DPI + (nameLines - 1) * 32 * DPI;
+      ctx.fillStyle = '#666';
+      ctx.font = '400 ' + (18 * DPI) + 'px sans-serif';
+      wrapText(ctx, pos, textX, nameEndY + 34 * DPI, textMaxW, 24 * DPI);
 
       // Row divider (except last row)
       if (col === COLS - 1 || i === TOTAL - 1) {
         ctx.strokeStyle = '#EEE';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 * DPI;
         ctx.beginPath();
-        ctx.moveTo(PAD, y + CELL_H - 15);
-        ctx.lineTo(CANVAS_W - PAD, y + CELL_H - 15);
+        ctx.moveTo(PAD, y + CELL_H - 18 * DPI);
+        ctx.lineTo(CANVAS_W - PAD, y + CELL_H - 18 * DPI);
         ctx.stroke();
       }
     }
