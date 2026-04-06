@@ -1,0 +1,17 @@
+# Raw input photos — keep these local, never commit
+# They may contain PII and are typically large
+input/*.jpg
+input/*.jpeg
+input/*.png
+input/*.JPG
+input/*.JPEG
+input/*.PNG
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS junk
+.DS_Store
+Thumbs.db
