@@ -506,6 +506,152 @@
     transform: translateY(-1px);
   }
 
+  /* ── Fallback Overlay ── */
+  .fallback-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .fallback-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .fallback-card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 40px 32px 32px;
+    max-width: 440px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+    transform: translateY(20px) scale(0.95);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    text-align: center;
+  }
+
+  .fallback-overlay.open .fallback-card {
+    transform: translateY(0) scale(1);
+  }
+
+  .fallback-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+
+  .fallback-close:hover {
+    background: var(--accent-light);
+  }
+
+  .fallback-icon {
+    margin: 0 auto 20px;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+
+  .fallback-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 400;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .fallback-body {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .fallback-steps {
+    text-align: left;
+    list-style: none;
+    counter-reset: steps;
+    margin: 0 0 28px;
+    padding: 0;
+  }
+
+  .fallback-steps li {
+    counter-increment: steps;
+    position: relative;
+    padding: 12px 12px 12px 48px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .fallback-steps li:last-child {
+    border-bottom: none;
+  }
+
+  .fallback-steps li::before {
+    content: counter(steps);
+    position: absolute;
+    left: 8px;
+    top: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fallback-steps strong {
+    color: var(--accent);
+    font-size: 0.95rem;
+    user-select: all;
+    word-break: break-all;
+  }
+
+  .fallback-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .fallback-done {
+    width: 100%;
+    justify-content: center;
+    padding: 14px;
+    font-size: 1rem;
+  }
+
   /* ── Toast ── */
   .toast {
     position: fixed;
@@ -920,6 +1066,25 @@
   <button class="lightbox-close" id="lightbox-close">&times;</button>
   <img id="lightbox-img" src="" alt="Zoomed face">
   <div class="lightbox-label" id="lightbox-label"></div>
+</div>
+
+<!-- Fallback overlay when mailto fails -->
+<div class="fallback-overlay" id="fallback-overlay">
+  <div class="fallback-card">
+    <button class="fallback-close" onclick="closeFallback()">&times;</button>
+    <div class="fallback-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="48" height="48"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+    </div>
+    <h2 class="fallback-title">Results copied to clipboard!</h2>
+    <p class="fallback-body">Your email app didn't open, but the results are ready to send. Here's what to do:</p>
+    <ol class="fallback-steps">
+      <li>Open your email app (Gmail, Outlook, etc.)</li>
+      <li>Create a new email to:<br><strong id="fallback-email"></strong></li>
+      <li>Paste the results into the email body<br><span class="fallback-hint">Ctrl+V on Windows &middot; Cmd+V on Mac</span></li>
+      <li>Hit Send!</li>
+    </ol>
+    <button class="btn btn-primary fallback-done" onclick="closeFallback()">Got it</button>
+  </div>
 </div>
 
 <div class="action-bar">
@@ -2046,11 +2211,32 @@
       document.body.removeChild(ta);
     });
 
-    // Try opening mailto — if no mail client, it silently fails
-    const w = window.open(mailtoUrl, '_self');
+    // Try mailto — detect failure via blur/focus timing
+    let mailtoWorked = false;
+    window.addEventListener('blur', function onBlur() {
+      mailtoWorked = true;
+      window.removeEventListener('blur', onBlur);
+    });
 
-    // Show helpful toast with the email address
-    showToast('Results copied! Email to: ' + EMAIL);
+    window.location.href = mailtoUrl;
+
+    // If still here after 1s with no blur, mailto didn't open anything
+    setTimeout(() => {
+      if (!mailtoWorked) {
+        showFallbackOverlay();
+      }
+    }, 1000);
+  };
+
+  // ── Fallback overlay when mailto fails ──
+  function showFallbackOverlay() {
+    const overlay = document.getElementById('fallback-overlay');
+    overlay.classList.add('open');
+    document.getElementById('fallback-email').textContent = EMAIL;
+  }
+
+  window.closeFallback = function() {
+    document.getElementById('fallback-overlay').classList.remove('open');
   };
 
   // Keep for backwards compat with updateState calls
