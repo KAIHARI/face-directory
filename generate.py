@@ -2393,7 +2393,7 @@ TEMPLATE_BOTTOM = r'''</div>
   // ── Photobook generator ──
   let photobookDataUrl = null;
 
-  function generatePhotobook() {
+  window.generatePhotobook = function() {
     const COLS = 2;
     const CANVAS_W = 1200;
     const PAD = 40;
@@ -2514,7 +2514,7 @@ TEMPLATE_BOTTOM = r'''</div>
     const previewImg = document.getElementById('photobook-img');
     previewImg.src = photobookDataUrl;
     document.getElementById('photobook-overlay').classList.add('open');
-  }
+  };
 
   // Text wrapping helper
   function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
