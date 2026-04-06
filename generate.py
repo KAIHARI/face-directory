@@ -682,6 +682,196 @@ TEMPLATE_TOP = r'''<!DOCTYPE html>
     transform: translateX(-50%) translateY(0);
   }
 
+  /* ── Password Modal ── */
+  .pw-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .pw-modal.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .pw-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+    transform: translateY(16px) scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .pw-modal.open .pw-card {
+    transform: translateY(0) scale(1);
+  }
+
+  .pw-card h3 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 400;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .pw-card p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+
+  .pw-input-wrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .pw-input-wrap input {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: var(--text);
+    background: var(--input-bg);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .pw-input-wrap input:focus {
+    border-color: var(--accent);
+  }
+
+  .pw-input-wrap button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .pw-input-wrap button:hover {
+    background: var(--accent-hover);
+  }
+
+  .pw-error {
+    font-size: 0.82rem;
+    color: #D44;
+    height: 1.2em;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+
+  .pw-card.shake {
+    animation: shake 0.4s ease;
+  }
+
+  /* ── Photobook Preview ── */
+  .photobook-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .photobook-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .photobook-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: rgba(0,0,0,0.5);
+    flex-shrink: 0;
+  }
+
+  .photobook-toolbar span {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .photobook-toolbar-btns {
+    display: flex;
+    gap: 10px;
+  }
+
+  .photobook-toolbar button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .photobook-dl-btn {
+    background: var(--accent);
+    color: #fff;
+  }
+  .photobook-dl-btn:hover {
+    background: var(--accent-hover);
+  }
+
+  .photobook-close-btn {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+  }
+  .photobook-close-btn:hover {
+    background: rgba(255,255,255,0.25);
+  }
+
+  .photobook-scroll {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .photobook-scroll img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+
   /* ── Animations ── */
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -789,6 +979,33 @@ TEMPLATE_BOTTOM = r'''</div>
       <li>Hit Send!</li>
     </ol>
     <button class="btn btn-primary fallback-done" onclick="closeFallback()">Got it</button>
+  </div>
+</div>
+
+<!-- Password Modal -->
+<div class="pw-modal" id="pw-modal">
+  <div class="pw-card" id="pw-card">
+    <h3>Admin Access</h3>
+    <p>Enter the password to continue</p>
+    <div class="pw-input-wrap">
+      <input type="password" id="pw-input" placeholder="Password" autocomplete="off">
+      <button onclick="submitPassword()">Go</button>
+    </div>
+    <div class="pw-error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- Photobook Preview -->
+<div class="photobook-overlay" id="photobook-overlay">
+  <div class="photobook-toolbar">
+    <span>Staff Directory</span>
+    <div class="photobook-toolbar-btns">
+      <button class="photobook-dl-btn" onclick="downloadPhotobook()">Download PNG</button>
+      <button class="photobook-close-btn" onclick="closePhotobook()">Close</button>
+    </div>
+  </div>
+  <div class="photobook-scroll">
+    <img id="photobook-img" src="" alt="Staff Directory">
   </div>
 </div>
 
@@ -1956,6 +2173,247 @@ TEMPLATE_BOTTOM = r'''</div>
   }
 
   updateState();
+
+  // ══════════════════════════════════════════════
+  // SECRET: Triple-click title → password → photobook
+  // ══════════════════════════════════════════════
+
+  // ── Triple-click detector on h1 ──
+  let clickCount = 0;
+  let clickTimer = null;
+  document.querySelector('.header h1').addEventListener('click', function() {
+    clickCount++;
+    clearTimeout(clickTimer);
+    if (clickCount >= 3) {
+      clickCount = 0;
+      showPasswordModal();
+    }
+    clickTimer = setTimeout(() => { clickCount = 0; }, 600);
+  });
+
+  // ── Password modal ──
+  function showPasswordModal() {
+    const modal = document.getElementById('pw-modal');
+    const input = document.getElementById('pw-input');
+    const error = document.getElementById('pw-error');
+    error.textContent = '';
+    input.value = '';
+    modal.classList.add('open');
+    setTimeout(() => input.focus(), 100);
+  }
+
+  window.submitPassword = function() {
+    const input = document.getElementById('pw-input');
+    const card = document.getElementById('pw-card');
+    const error = document.getElementById('pw-error');
+
+    if (input.value === 'ahmchealth') {
+      document.getElementById('pw-modal').classList.remove('open');
+      generatePhotobook();
+    } else {
+      error.textContent = 'Incorrect password';
+      card.classList.remove('shake');
+      void card.offsetWidth; // force reflow
+      card.classList.add('shake');
+    }
+  };
+
+  // Enter key in password field
+  document.getElementById('pw-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitPassword();
+    if (e.key === 'Escape') document.getElementById('pw-modal').classList.remove('open');
+  });
+
+  // Click backdrop to close
+  document.getElementById('pw-modal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+
+  // ── Photobook generator ──
+  let photobookDataUrl = null;
+
+  function generatePhotobook() {
+    const COLS = 2;
+    const CANVAS_W = 1200;
+    const PAD = 40;
+    const COL_W = (CANVAS_W - PAD * 3) / COLS;
+    const PHOTO_SIZE = 180;
+    const CELL_H = 240;
+    const HEADER_H = 120;
+    const ROWS = Math.ceil(TOTAL / COLS);
+    const CANVAS_H = HEADER_H + ROWS * CELL_H + PAD;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = CANVAS_W;
+    canvas.height = CANVAS_H;
+    const ctx = canvas.getContext('2d');
+
+    // White background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Header
+    ctx.fillStyle = '#1A1A1A';
+    ctx.font = '700 42px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Staff Directory', CANVAS_W / 2, 70);
+
+    // Subtitle line
+    ctx.fillStyle = '#999';
+    ctx.font = '400 16px sans-serif';
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    ctx.fillText(date, CANVAS_W / 2, 98);
+
+    // Header divider
+    ctx.strokeStyle = '#DDD';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, HEADER_H - 5);
+    ctx.lineTo(CANVAS_W - PAD, HEADER_H - 5);
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+
+    // Draw each person
+    for (let i = 0; i < TOTAL; i++) {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const x = PAD + col * (COL_W + PAD);
+      const y = HEADER_H + row * CELL_H + 20;
+
+      // Get the image element from DOM
+      const imgEl = document.querySelector('#card-' + i + ' img');
+
+      // Draw face photo with rounded corners via clipping
+      ctx.save();
+      const photoX = x;
+      const photoY = y;
+      const r = 12;
+      ctx.beginPath();
+      ctx.moveTo(photoX + r, photoY);
+      ctx.lineTo(photoX + PHOTO_SIZE - r, photoY);
+      ctx.quadraticCurveTo(photoX + PHOTO_SIZE, photoY, photoX + PHOTO_SIZE, photoY + r);
+      ctx.lineTo(photoX + PHOTO_SIZE, photoY + PHOTO_SIZE - r);
+      ctx.quadraticCurveTo(photoX + PHOTO_SIZE, photoY + PHOTO_SIZE, photoX + PHOTO_SIZE - r, photoY + PHOTO_SIZE);
+      ctx.lineTo(photoX + r, photoY + PHOTO_SIZE);
+      ctx.quadraticCurveTo(photoX, photoY + PHOTO_SIZE, photoX, photoY + PHOTO_SIZE - r);
+      ctx.lineTo(photoX, photoY + r);
+      ctx.quadraticCurveTo(photoX, photoY, photoX + r, photoY);
+      ctx.closePath();
+      ctx.clip();
+
+      if (imgEl && imgEl.complete) {
+        ctx.drawImage(imgEl, photoX, photoY, PHOTO_SIZE, PHOTO_SIZE);
+      } else {
+        ctx.fillStyle = '#E8E4DC';
+        ctx.fillRect(photoX, photoY, PHOTO_SIZE, PHOTO_SIZE);
+      }
+      ctx.restore();
+
+      // Text area to the right of the photo
+      const textX = x + PHOTO_SIZE + 20;
+      const textMaxW = COL_W - PHOTO_SIZE - 20;
+      const displayNum = String(i + 1).padStart(2, '0');
+
+      // Card number
+      ctx.fillStyle = '#AAA';
+      ctx.font = '500 13px sans-serif';
+      ctx.fillText('#' + displayNum, textX, y + 18);
+
+      // Name
+      const name = (saved[i] && saved[i].name && saved[i].name.trim()) || '(not filled)';
+      ctx.fillStyle = '#1A1A1A';
+      ctx.font = '700 22px sans-serif';
+      wrapText(ctx, name, textX, y + 50, textMaxW, 28);
+
+      // Position
+      const pos = (saved[i] && saved[i].position && saved[i].position.trim()) || '(not filled)';
+      ctx.fillStyle = '#666';
+      ctx.font = '400 16px sans-serif';
+      // Calculate where name ended to position title below
+      const nameLines = getWrappedLines(ctx, name, textMaxW);
+      ctx.font = '700 22px sans-serif'; // measure with name font
+      const nameEndY = y + 50 + (nameLines - 1) * 28;
+      ctx.font = '400 16px sans-serif';
+      wrapText(ctx, pos, textX, nameEndY + 28, textMaxW, 22);
+
+      // Row divider (except last row)
+      if (col === COLS - 1 || i === TOTAL - 1) {
+        ctx.strokeStyle = '#EEE';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(PAD, y + CELL_H - 15);
+        ctx.lineTo(CANVAS_W - PAD, y + CELL_H - 15);
+        ctx.stroke();
+      }
+    }
+
+    // Convert to image and show preview
+    photobookDataUrl = canvas.toDataURL('image/png');
+    const previewImg = document.getElementById('photobook-img');
+    previewImg.src = photobookDataUrl;
+    document.getElementById('photobook-overlay').classList.add('open');
+  }
+
+  // Text wrapping helper
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    let lineY = y;
+    for (let w = 0; w < words.length; w++) {
+      const testLine = line + (line ? ' ' : '') + words[w];
+      if (ctx.measureText(testLine).width > maxWidth && line) {
+        ctx.fillText(line, x, lineY);
+        line = words[w];
+        lineY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, x, lineY);
+  }
+
+  // Count wrapped lines helper
+  function getWrappedLines(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    let line = '';
+    let lines = 1;
+    for (let w = 0; w < words.length; w++) {
+      const testLine = line + (line ? ' ' : '') + words[w];
+      if (ctx.measureText(testLine).width > maxWidth && line) {
+        line = words[w];
+        lines++;
+      } else {
+        line = testLine;
+      }
+    }
+    return lines;
+  }
+
+  // ── Download + close ──
+  window.downloadPhotobook = function() {
+    if (!photobookDataUrl) return;
+    const a = document.createElement('a');
+    a.href = photobookDataUrl;
+    a.download = 'staff-directory.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  window.closePhotobook = function() {
+    document.getElementById('photobook-overlay').classList.remove('open');
+  };
+
+  // Escape to close photobook
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      if (document.getElementById('photobook-overlay').classList.contains('open')) {
+        closePhotobook();
+      }
+    }
+  });
+
 })();
 </script>
 </body>
