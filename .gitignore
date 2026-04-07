@@ -7,6 +7,9 @@ input/*.JPG
 input/*.JPEG
 input/*.PNG
 
+# Local Claude Code session files (not project content)
+.claude/
+
 # Python cache
 __pycache__/
 *.pyc

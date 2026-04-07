@@ -1,13 +1,13 @@
 """Face Directory build pipeline.
 
-Two-step workflow that lets you prune unwanted faces between detection
-and HTML generation:
+Workflow that lets you prune unwanted faces between detection
+and HTML generation, then publishes with one command:
 
     1. Drop a group photo into input/
     2. python run.py crop      # detect faces, write face_01.jpg .. face_NN.jpg
     3. (Optional) Manually delete any face_*.jpg you don't want in the directory
     4. python run.py build     # regenerate index.html from remaining files
-    5. git add -A && git commit -m "New directory" && git push
+    5. python run.py deploy    # git add + commit + push (or double-click deploy.bat)
 
 Or, if you want every detected face without pruning:
 
@@ -18,9 +18,8 @@ Subcommands:
             Deletes existing face_*.jpg first for a clean slate.
     build   Run generate.py to embed current face_*.jpg files into index.html.
     all     Equivalent to: crop + build (skips the manual prune step).
-
-Does NOT auto-commit or auto-push. Always review the regenerated
-directory before deploying photos of real people.
+    deploy  Stage all changes, commit with a dated message, and push.
+            Available as deploy.bat for double-click convenience.
 """
 import sys
 import subprocess
@@ -119,9 +118,8 @@ def cmd_build():
     print("=" * 60)
     print("\nNext steps (review first, then deploy):")
     print("  1. Open index.html in a browser to verify the directory")
-    print("  2. When ready to publish:")
-    print('     git add -A && git commit -m "New directory" && git push')
-    print("\nThe site will redeploy automatically on GitHub Pages.")
+    print("  2. When ready to publish: python run.py deploy")
+    print("     (or double-click deploy.bat)")
     return 0
 
 
@@ -134,10 +132,68 @@ def cmd_all():
     return cmd_build()
 
 
+def _git(*args, capture=False):
+    """Run a git command in the project root. Returns CompletedProcess."""
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(SCRIPT_DIR),
+        capture_output=capture,
+        text=capture,
+    )
+
+
+def cmd_deploy():
+    """Stage, commit, and push to GitHub Pages."""
+    from datetime import datetime
+
+    # Verify we're in a git repo
+    rc = _git("rev-parse", "--is-inside-work-tree", capture=True).returncode
+    if rc != 0:
+        print("ERROR: not a git repository")
+        return 1
+
+    # Show what's about to be deployed
+    status = _git("status", "--short", capture=True)
+    if not status.stdout.strip():
+        print("Nothing to deploy — working tree is clean.")
+        print("If you just made changes, run 'python run.py build' first.")
+        return 0
+
+    print("Changes to deploy:")
+    print(status.stdout)
+
+    # Stage everything
+    print("Staging changes...")
+    if _git("add", "-A").returncode != 0:
+        print("ERROR: git add failed")
+        return 1
+
+    # Commit with date in the message (git records the full timestamp anyway)
+    msg = f"Update directory {datetime.now().strftime('%Y-%m-%d')}"
+    print(f"Committing: {msg}")
+    if _git("commit", "-m", msg).returncode != 0:
+        print("ERROR: git commit failed")
+        return 1
+
+    # Push
+    print("\nPushing to GitHub...")
+    if _git("push").returncode != 0:
+        print("\nERROR: git push failed")
+        print("Check your internet connection or run 'git push' manually.")
+        return 1
+
+    print("\n" + "=" * 60)
+    print("Deployed! Site will redeploy on GitHub Pages in ~30 seconds.")
+    print("URL: https://kaihari.github.io/face-directory/")
+    print("=" * 60)
+    return 0
+
+
 COMMANDS = {
     "crop": cmd_crop,
     "build": cmd_build,
     "all": cmd_all,
+    "deploy": cmd_deploy,
 }
 
 
@@ -153,13 +209,14 @@ def main():
         print("  crop    Detect faces, write face_01.jpg .. face_NN.jpg")
         print("  build   Regenerate index.html from current face files")
         print("  all     Run crop + build together (no manual prune)")
+        print("  deploy  Stage, commit, and push to GitHub Pages")
         print()
         print("Typical workflow:")
         print("  1. Drop group photo in input/")
         print("  2. python run.py crop")
         print("  3. Delete any unwanted face_*.jpg files")
         print("  4. python run.py build")
-        print("  5. git add -A && git commit -m '...' && git push")
+        print("  5. python run.py deploy   (or double-click deploy.bat)")
         sys.exit(1)
 
     sys.exit(COMMANDS[sys.argv[1]]())
