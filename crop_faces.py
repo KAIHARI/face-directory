@@ -106,11 +106,11 @@ def crop_faces(image_path, output_dir):
 def main():
     if len(sys.argv) < 2:
         print("Usage: python crop_faces.py <image_path> [output_dir]")
-        print("  output_dir defaults to the current directory")
+        print("  output_dir defaults to ./faces/")
         sys.exit(1)
 
     image_path = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else "."
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else str(SCRIPT_DIR / "faces")
 
     count = crop_faces(image_path, output_dir)
     sys.exit(0 if count > 0 else 1)

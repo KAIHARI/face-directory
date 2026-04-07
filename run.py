@@ -29,6 +29,7 @@ from crop_faces import crop_faces
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 INPUT_DIR = SCRIPT_DIR / "input"
+FACES_DIR = SCRIPT_DIR / "faces"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"}
 
 
@@ -46,16 +47,20 @@ def find_input_image():
 
 
 def clean_old_faces():
-    """Delete all face_*.jpg files in the project root. Returns count removed."""
+    """Delete all face_*.jpg files in the faces/ folder. Returns count removed."""
+    if not FACES_DIR.exists():
+        return 0
     removed = 0
-    for p in SCRIPT_DIR.glob("face_*.jpg"):
+    for p in FACES_DIR.glob("face_*.jpg"):
         p.unlink()
         removed += 1
     return removed
 
 
 def count_face_files():
-    return len(list(SCRIPT_DIR.glob("face_*.jpg")))
+    if not FACES_DIR.exists():
+        return 0
+    return len(list(FACES_DIR.glob("face_*.jpg")))
 
 
 def run_generate():
@@ -68,7 +73,7 @@ def run_generate():
 
 
 def cmd_crop():
-    """Detect faces and write fresh face_*.jpg files."""
+    """Detect faces and write fresh face_*.jpg files into faces/."""
     image_path = find_input_image()
     if image_path is None:
         print("ERROR: no image found in input/")
@@ -78,10 +83,12 @@ def cmd_crop():
     print(f"Using input image: {image_path.name}")
 
     removed = clean_old_faces()
-    print(f"Removed {removed} old face_*.jpg file(s)\n")
+    print(f"Removed {removed} old face_*.jpg file(s) from faces/\n")
+
+    FACES_DIR.mkdir(exist_ok=True)
 
     try:
-        count = crop_faces(image_path, SCRIPT_DIR)
+        count = crop_faces(image_path, FACES_DIR)
     except FileNotFoundError as e:
         print(f"ERROR: {e}")
         return 1
@@ -91,10 +98,10 @@ def cmd_crop():
         return 1
 
     print("\n" + "=" * 60)
-    print(f"Crop complete: {count} face(s) saved as face_01.jpg .. face_{count:02d}.jpg")
+    print(f"Crop complete: {count} face(s) saved to faces/face_01.jpg .. face_{count:02d}.jpg")
     print("=" * 60)
     print("\nNext steps:")
-    print(f"  1. Open the folder: {SCRIPT_DIR}")
+    print(f"  1. Open the folder: {FACES_DIR}")
     print("  2. Delete any face_*.jpg files you don't want in the directory")
     print("  3. Run: python run.py build")
     return 0

@@ -2775,10 +2775,11 @@ TEMPLATE_BOTTOM = r'''</div>
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    images = sorted(glob.glob(os.path.join(script_dir, 'face_*.jpg')))
+    faces_dir = os.path.join(script_dir, 'faces')
+    images = sorted(glob.glob(os.path.join(faces_dir, 'face_*.jpg')))
 
     if not images:
-        print("No face_*.jpg files found!")
+        print("No face_*.jpg files found in faces/!")
         return
 
     total = len(images)
